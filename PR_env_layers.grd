@@ -1,0 +1,26 @@
+[general] 
+creator=R package 'raster' 
+created= 2013-10-17 16:50:14 
+[georeference] 
+nrows= 164 
+ncols= 557 
+xmin= -67.31875 
+ymin= 17.86875 
+xmax= -64.997916666 
+ymax= 18.552083333 
+projection= NA 
+[data] 
+datatype= FLT4S 
+byteorder= little 
+nbands= 8 
+bandorder= BIL 
+minvalue= 0:6.54877768598073:15.38:114.45:20.5674166104465:23.34:12.41:5.58916666666667 
+maxvalue= 6:8.43553401128812:277.99:512.29:69.9033572522013:33.68:21.35:14.2616666666667 
+nodatavalue= -3.4e+38 
+[legend] 
+legendtype=  
+values=  
+color=  
+[description] 
+layername= geology:log.annual.ppt:min.ppt:max.ppt:cv.ppt:temp.max:temp.min:temp.daily.range 
+history=  
