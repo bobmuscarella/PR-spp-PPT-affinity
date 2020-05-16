@@ -1,10 +1,11 @@
 ---
-title: "PR species precipitation affiliations"
+title: "Precipitation Affinity for Puerto Rican Trees"
 author: "Bob Muscarella"
 date: "5/16/2020"
 output:
   html_document:
     df_print: paged
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -12,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Getting started
-First load the packages we need to use and set a working directory.  All of these can be installed as normal via CRAN except the last one, `chelsaDL`, which you need to install from GitHub using the `devtools` package like this: 
+First load the packages we need to use and set a working directory.  All of these can be installed as normal via CRAN except for one, `chelsaDL`, which you need to install from GitHub using the `devtools` package like this: 
 
 `devtools::install_github("matthewkling/chelsaDL")`
 
@@ -29,11 +30,18 @@ setwd("~/Downloads")
 ```
 
 ## Download all the data
-I put a zip file on Github with:
-+ The PR climate rasters
-+ The list of focal species
-+ The PR occurrence records for the hydraulic focal species
-+ The PR SDMs for hydraulic focal species
+I put a zip file on Github with some data used:
+
++ A list of the focal species (.csv file)
++ The PR occurrence records for the hydraulic focal species (.RDA file)
++ The PR SDMs for hydraulic focal species (.grd/.gri files)
++ The PR climate rasters (.grd/.gri files)
+
+The following data is downloaded separately by the script:
+
++ Occurrence records from GBIF
++ Chelsa global climate data (.tif files)
++ Occurrence records from BIEN
 
 ```{r download data, eval=F}
 download.file("https://github.com/bobmuscarella/PR-spp-PPT-affinity/raw/master/DATA.zip",
@@ -86,7 +94,7 @@ names(pr_df) <- c("SPCODE",
 rownames(pr_df) <- NULL
 ```
 
-## GBIF
+## Get GBIF occurrence data
 The `rgbif::occ_search` function can be used to harvest occurrence records from GBIF.  It returns an object of class `gbif` that functions kind of like a list with data returned for each species as an element of the list.  Below, we only take records with coordinates and we set the limit on the number of records per species to 5000 (the default is only 500). This will take a couple of minutes to run...
 
 ```{r gbif, eval=F}
@@ -117,7 +125,7 @@ occ_gbif_cc_df <- do.call(rbind, occ_gbif_cc)
 ```
 
 
-## Get global climate data from Chelsa
+## Get global climate data from the Chelsa dataset
 We can download the Chelsa global climate data using the `chelsaDL` package, which you need to install from GitHub using the `devtools` package like this: 
 
 `devtools::install_github("matthewkling/chelsaDL")`
@@ -168,7 +176,7 @@ rownames(gbif_ch_df) <- focsp$NAME
 ```
 
 
-## BIEN
+## Acquire and process BIEN occurrences
 We can also harvest data from BIEN. But, for some reason, I get a different number of occurrence records when I use the BIEN r package vs. if I download records from [www.biendata.org](www.biendata.org). In fact, no records are downloaded for CASARB or PREMON! I've asked the package author about this and am waiting for a reply.  In the meantime, the code below works but doesn't return very many records for some species so I would be very hesitant to use it.
 
 ```{r, message=F, eval=F}
