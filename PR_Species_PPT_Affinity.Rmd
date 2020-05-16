@@ -37,7 +37,7 @@ I put a zip file on Github with some of the data used below. You download that w
 + The PR SDMs for hydraulic focal species (.grd/.gri files)
 + The PR climate rasters (.grd/.gri files)
 
-```{r download data, eval=T}
+```{r download data, eval=F}
 download.file("https://github.com/bobmuscarella/PR-spp-PPT-affinity/raw/master/DATA.zip",
               destfile="DATA.zip")
 unzip("DATA.zip")
@@ -50,7 +50,7 @@ The following data is also used but will be downloaded in later parts of the scr
 + Occurrence records from BIEN
 
 ## Load PR mean annual rainfall raster
-```{r env input, eval=T}
+```{r env input, eval=F}
 ppt <- raster("DATA/PR_mean_annual_ppt.tif")
 ```
 

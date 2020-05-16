@@ -1673,10 +1673,9 @@ unzip(&quot;DATA.zip&quot;)</code></pre>
 <li>Occurrence records from BIEN</li>
 </ul>
 </div>
-<div id="input-environmental-layers" class="section level2">
-<h2>Input environmental layers</h2>
-<pre class="r"><code>env &lt;- stack(&quot;DATA/PR_env_layers.grd&quot;)
-ppt &lt;- exp(env$log.annual.ppt)</code></pre>
+<div id="load-pr-mean-annual-rainfall-raster" class="section level2">
+<h2>Load PR mean annual rainfall raster</h2>
+<pre class="r"><code>ppt &lt;- raster(&quot;DATA/PR_mean_annual_ppt.tif&quot;)</code></pre>
 </div>
 <div id="get-occurrence-records-from-our-pr-dataset" class="section level2">
 <h2>Get occurrence records from our PR dataset</h2>
