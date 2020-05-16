@@ -30,29 +30,28 @@ setwd("~/Downloads")
 ```
 
 ## Download all the data
-I put a zip file on Github with some data used:
+I put a zip file on Github with some of the data used below. You download that with the next block of code.
 
 + A list of the focal species (.csv file)
 + The PR occurrence records for the hydraulic focal species (.RDA file)
 + The PR SDMs for hydraulic focal species (.grd/.gri files)
 + The PR climate rasters (.grd/.gri files)
 
-The following data is downloaded separately by the script:
-
-+ Occurrence records from GBIF
-+ Chelsa global climate data (.tif files)
-+ Occurrence records from BIEN
-
-```{r download data, eval=F}
+```{r download data, eval=T}
 download.file("https://github.com/bobmuscarella/PR-spp-PPT-affinity/raw/master/DATA.zip",
               destfile="DATA.zip")
 unzip("DATA.zip")
 ```
 
-## Input environmental layers
-```{r env input, eval=F}
-env <- stack("DATA/PR_env_layers.grd")
-ppt <- exp(env$log.annual.ppt)
+The following data is also used but will be downloaded in later parts of the script:
+
++ Occurrence records from GBIF
++ Chelsa global climate data (.tif files)
++ Occurrence records from BIEN
+
+## Load PR mean annual rainfall raster
+```{r env input, eval=T}
+ppt <- raster("DATA/PR_mean_annual_ppt.tif")
 ```
 
 

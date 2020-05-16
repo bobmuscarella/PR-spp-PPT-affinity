@@ -1656,22 +1656,22 @@ setwd(&quot;~/Downloads&quot;)</code></pre>
 </div>
 <div id="download-all-the-data" class="section level2">
 <h2>Download all the data</h2>
-<p>I put a zip file on Github with some data used:</p>
+<p>I put a zip file on Github with some of the data used below. You download that with the next block of code.</p>
 <ul>
 <li>A list of the focal species (.csv file)</li>
 <li>The PR occurrence records for the hydraulic focal species (.RDA file)</li>
 <li>The PR SDMs for hydraulic focal species (.grd/.gri files)</li>
 <li>The PR climate rasters (.grd/.gri files)</li>
 </ul>
-<p>The following data is downloaded separately by the script:</p>
+<pre class="r"><code>download.file(&quot;https://github.com/bobmuscarella/PR-spp-PPT-affinity/raw/master/DATA.zip&quot;,
+              destfile=&quot;DATA.zip&quot;)
+unzip(&quot;DATA.zip&quot;)</code></pre>
+<p>The following data is also used but will be downloaded in later parts of the script:</p>
 <ul>
 <li>Occurrence records from GBIF</li>
 <li>Chelsa global climate data (.tif files)</li>
 <li>Occurrence records from BIEN</li>
 </ul>
-<pre class="r"><code>download.file(&quot;https://github.com/bobmuscarella/PR-spp-PPT-affinity/raw/master/DATA.zip&quot;,
-              destfile=&quot;DATA.zip&quot;)
-unzip(&quot;DATA.zip&quot;)</code></pre>
 </div>
 <div id="input-environmental-layers" class="section level2">
 <h2>Input environmental layers</h2>
