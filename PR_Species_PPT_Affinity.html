@@ -1677,8 +1677,8 @@ unzip(&quot;DATA.zip&quot;)</code></pre>
 <h2>Load PR mean annual rainfall raster</h2>
 <pre class="r"><code>ppt &lt;- raster(&quot;DATA/PR_mean_annual_ppt.tif&quot;)</code></pre>
 </div>
-<div id="get-occurrence-records-from-our-pr-dataset" class="section level2">
-<h2>Get occurrence records from our PR dataset</h2>
+<div id="load-pr-occurrence-records-and-extract-precipitation-values" class="section level2">
+<h2>Load PR occurrence records and extract precipitation values</h2>
 <pre class="r"><code>focsp &lt;- read.csv(&quot;DATA/Hyraulics_Focal_Species.csv&quot;, as.is=T)
 
 focpts &lt;- read.csv(&quot;DATA/Hydraulic_species_PR_occurrences.csv&quot;)
@@ -1721,8 +1721,8 @@ rownames(pr_df) &lt;- NULL</code></pre>
                      limit=5000,
                      hasCoordinate=TRUE)</code></pre>
 </div>
-<div id="clean-coordinates" class="section level2">
-<h2>Clean coordinates</h2>
+<div id="clean-gbif-coordinates" class="section level2">
+<h2>Clean GBIF coordinates</h2>
 <p>Many records in GBIF are of questionable quality - especially the location information. There are many ways one can approach ‘cleaning’ these data but the <code>CoordinateCleaner</code> package is pretty slick. Below, we clean the coordinates for each species in turn. The function flags questionable coordinates based on some rules (see <code>?clean_coordinates</code> for details) and, in this case, we simply delete any flagged records. One could investigate each of the flagged records in detail but this is simpler and reproducible. This also takes a minute to run.</p>
 <pre class="r"><code>occ_gbif_cc &lt;- list()
 
@@ -1740,8 +1740,8 @@ for(i in 1:length(occ_gbif)){
 # Clean up and make them a single data frame
 occ_gbif_cc_df &lt;- do.call(rbind, occ_gbif_cc)</code></pre>
 </div>
-<div id="get-global-climate-data-from-the-chelsa-dataset" class="section level2">
-<h2>Get global climate data from the Chelsa dataset</h2>
+<div id="get-chelsa-global-climate-data" class="section level2">
+<h2>Get Chelsa global climate data</h2>
 <p>We can download the Chelsa global climate data using the <code>chelsaDL</code> package, which you need to install from GitHub using the <code>devtools</code> package like this:</p>
 <p><code>devtools::install_github(&quot;matthewkling/chelsaDL&quot;)</code></p>
 <p>Below, we first specify what we want - the climatological means for the bioclimatic variables (all 19 of them). You can also get past / future predictions, etc.</p>
@@ -1785,8 +1785,8 @@ gbif_ch_df &lt;- gbif_ch_df[match(focsp$NAME,
                                rownames(gbif_ch_df)),]
 rownames(gbif_ch_df) &lt;- focsp$NAME</code></pre>
 </div>
-<div id="acquire-and-process-bien-occurrences" class="section level2">
-<h2>Acquire and process BIEN occurrences</h2>
+<div id="acquire-and-process-occurrences-from-bien" class="section level2">
+<h2>Acquire and process occurrences from BIEN</h2>
 <p>We can also harvest data from BIEN. But, for some reason, I get a different number of occurrence records when I use the BIEN r package vs. if I download records from <a href="www.biendata.org">www.biendata.org</a>. In fact, no records are downloaded for CASARB or PREMON! I’ve asked the package author about this and am waiting for a reply. In the meantime, the code below works but doesn’t return very many records for some species so I would be very hesitant to use it.</p>
 <pre class="r"><code>occ_bien &lt;- BIEN_occurrence_species(focsp$NAME)
 
