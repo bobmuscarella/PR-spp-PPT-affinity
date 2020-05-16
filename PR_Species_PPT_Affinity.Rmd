@@ -12,6 +12,10 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Introduction
+The idea of this script is to take point occurrence records of tree species, extract values of precipitation at those points, and summarize those data to represent some kind of 'precipitation affinity' for different species.  We start with looking at occurrences in PR and comparing with PR climate data.  Then we get global occurrences from GBIF and BIEN and compare these occurrences with global climate data from [Chelsa](http://chelsa-climate.org/).
+
+
 ## Getting started
 First load the packages we need to use and set a working directory.  All of these can be installed as normal via CRAN except for one, `chelsaDL`, which you need to install from GitHub using the `devtools` package like this: 
 
