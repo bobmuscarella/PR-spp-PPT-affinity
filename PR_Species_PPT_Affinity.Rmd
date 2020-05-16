@@ -1,0 +1,218 @@
+---
+title: "PR species precipitation affiliations"
+author: "Bob Muscarella"
+date: "5/16/2020"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Getting started
+First load the packages we need to use and set a working directory.  All of these can be installed as normal via CRAN except the last one, `chelsaDL`, which you need to install from GitHub using the `devtools` package like this: 
+
+`devtools::install_github("matthewkling/chelsaDL")`
+
+```{r start, message=F, eval=F}
+library(raster)
+library(rgbif)
+library(CoordinateCleaner)
+library(chelsaDL)
+library(stringr)
+library(BIEN)
+
+# Set an empty working directory
+setwd("~/Downloads")
+```
+
+## Download all the data
+I put a zip file on Github with:
++ The PR climate rasters
++ The list of focal species
++ The PR occurrence records for the hydraulic focal species
++ The PR SDMs for hydraulic focal species
+
+```{r download data, eval=F}
+download.file("https://github.com/bobmuscarella/PR-spp-PPT-affinity/raw/master/DATA.zip",
+              destfile="DATA.zip")
+unzip("DATA.zip")
+```
+
+## Input environmental layers
+```{r env input, eval=F}
+env <- stack("DATA/PR_env_layers.grd")
+ppt <- exp(env$log.annual.ppt)
+```
+
+
+## Get occurrence records from our PR dataset
+```{r get occs, eval=F} 
+focsp <- read.csv("DATA/Hyraulics_Focal_Species.csv", as.is=T)
+
+focpts <- read.csv("DATA/Hydraulic_species_PR_occurrences.csv")
+
+focpts$PPT <- extract(ppt, focpts[,c('LON','LAT')])
+
+splist <- split(focpts, focpts$scrubbed.name)
+
+pr_df <- data.frame()
+for(i in 1:length(splist)){
+  r <- raster(paste0("DATA/", focsp$CODE[i], ".grd"))
+  opt.ppt <- cellStats((r == cellStats(r, max)) * ppt, max)
+  pr_df <- rbind(pr_df, cbind(as.character(focsp$CODE[i]), 
+                        names(splist)[i], 
+                        median(splist[[i]]$PPT, na.rm=T), 
+                        min(splist[[i]]$PPT, na.rm=T), 
+                        max(splist[[i]]$PPT, na.rm=T), 
+                        opt.ppt,
+                        quantile(splist[[i]]$PPT, 0.05, na.rm=T),
+                        quantile(splist[[i]]$PPT, 0.95, na.rm=T)))
+}
+
+for(j in 3:8) { pr_df[,j] <- round(as.numeric(as.character(pr_df[,j])), 0) }
+
+names(pr_df) <- c("SPCODE", 
+                  "SpeciesName",
+                  "MedianPPT", 
+                  "MinPPT", 
+                  "MaxPPT",
+                  "OptimalPPT",
+                  "5%quantile",
+                  "95%quantile")
+
+rownames(pr_df) <- NULL
+```
+
+## GBIF
+The `rgbif::occ_search` function can be used to harvest occurrence records from GBIF.  It returns an object of class `gbif` that functions kind of like a list with data returned for each species as an element of the list.  Below, we only take records with coordinates and we set the limit on the number of records per species to 5000 (the default is only 500). This will take a couple of minutes to run...
+
+```{r gbif, eval=F}
+occ_gbif <- occ_search(scientificName=focsp$NAME, 
+                     limit=5000,
+                     hasCoordinate=TRUE)
+```
+
+## Clean coordinates
+Many records in GBIF are of questionable quality - especially the location information. There are many ways one can approach 'cleaning' these data but the `CoordinateCleaner` package is pretty slick. Below, we clean the coordinates for each species in turn. The function flags questionable coordinates based on some rules (see `?clean_coordinates` for details) and, in this case, we simply delete any flagged records.  One could investigate each of the flagged records in detail but this is simpler and reproducible.  This also takes a minute to run.
+
+```{r coordinate cleaner, message=F, warning=F, comment=F, results='hide', eval=F}
+occ_gbif_cc <- list()
+
+for(i in 1:length(occ_gbif)){
+  tmpdata <- data.frame(species=focsp$NAME[i],
+                        lon=occ_gbif[[i]]$data$decimalLongitude,
+                        lat=occ_gbif[[i]]$data$decimalLatitude)
+  
+  occ_gbif_cc[[i]] <- clean_coordinates(tmpdata, 
+                                        lon="lon",
+                                        lat="lat",
+                                        value="clean")
+}
+
+# Clean up and make them a single data frame
+occ_gbif_cc_df <- do.call(rbind, occ_gbif_cc)
+```
+
+
+## Get global climate data from Chelsa
+We can download the Chelsa global climate data using the `chelsaDL` package, which you need to install from GitHub using the `devtools` package like this: 
+
+`devtools::install_github("matthewkling/chelsaDL")`
+
+Below, we first specify what we want - the climatological means for the bioclimatic variables (all 19 of them).  You can also get past / future predictions, etc.
+
+```{r chelsa data, message=F, eval=F, results='hide'}
+# First create the 'order' for what you want to download
+ch_data <- ch_queries(variables = c("bio"),
+                      layers = 1:19,
+                      timeframes = "1979-2013")
+
+# Now download it to a new subfolder
+dir.create("DATA/chelsa")
+ch_dl(ch_data, dest="DATA/chelsa")
+
+# Read the gridded climate data just downloaded
+ch_grids <- stack(paste0("DATA/chelsa/", list.files("DATA/chelsa")))
+```
+
+## Extract climate data at GBIF occurrences
+```{r gbif chelsa, results='hide', eval=F}
+# Extract the Chelsa data at each of the GBIF points
+gbif_ch_extract <- extract(ch_grids, occ_gbif_cc_df[,2:3])
+
+# Summarize the data with mean, 95% and 5% quantiles
+gbif_ch_means <- apply(gbif_ch_extract, 2, tapply, 
+                  occ_gbif_cc_df$species, mean, na.rm=T)
+gbif_ch_q95 <- apply(gbif_ch_extract, 2, tapply, 
+                occ_gbif_cc_df$species, quantile, 0.95, na.rm=T)
+gbif_ch_q05 <- apply(gbif_ch_extract, 2, tapply, 
+                occ_gbif_cc_df$species, quantile, 0.05, na.rm=T)
+
+# Rename the columns for convenience
+colnames(gbif_ch_means) <- paste0("bio", 1:19, "_mean")
+colnames(gbif_ch_q95) <- paste0("bio", 1:19, "_q95")
+colnames(gbif_ch_q05) <- paste0("bio", 1:19, "_q05")
+
+# Bind together to a single data.frame
+gbif_ch_df <- data.frame(cbind(gbif_ch_means, 
+                               gbif_ch_q95, 
+                               gbif_ch_q05))
+
+# Make sure we a row for each focal species
+gbif_ch_df <- gbif_ch_df[match(focsp$NAME, 
+                               rownames(gbif_ch_df)),]
+rownames(gbif_ch_df) <- focsp$NAME
+```
+
+
+## BIEN
+We can also harvest data from BIEN. But, for some reason, I get a different number of occurrence records when I use the BIEN r package vs. if I download records from [www.biendata.org](www.biendata.org). In fact, no records are downloaded for CASARB or PREMON! I've asked the package author about this and am waiting for a reply.  In the meantime, the code below works but doesn't return very many records for some species so I would be very hesitant to use it.
+
+```{r, message=F, eval=F}
+occ_bien <- BIEN_occurrence_species(focsp$NAME)
+
+# Remove rows with no coordinates
+occ_bien <- occ_bien[!is.na(occ_bien$latitude),]
+
+# Run the coordinate cleaner function
+occ_bien_cc <- clean_coordinates(occ_bien, 
+                                 species="scrubbed_species_binomial",
+                                 lon="longitude",
+                                 lat="latitude",
+                                 value="clean")
+
+# Extract the climate data at occurrences
+bien_ch_extract <- extract(ch_grids, occ_bien_cc[,3:2])
+
+# Summarize the data with mean, 95% and 5% quantiles
+bien_ch_means <- apply(bien_ch_extract, 2, tapply, 
+                  occ_bien_cc$scrubbed_species_binomial, 
+                  mean, na.rm=T)
+bien_ch_q95 <- apply(bien_ch_extract, 2, tapply, 
+                occ_bien_cc$scrubbed_species_binomial, 
+                quantile, 0.95, na.rm=T)
+bien_ch_q05 <- apply(bien_ch_extract, 2, tapply, 
+                occ_bien_cc$scrubbed_species_binomial, 
+                quantile, 0.05, na.rm=T)
+
+# Rename the columns for convenience
+colnames(bien_ch_means) <- paste0("bio", 1:19, "_mean")
+colnames(bien_ch_q95) <- paste0("bio", 1:19, "_q95")
+colnames(bien_ch_q05) <- paste0("bio", 1:19, "_q05")
+
+# Bind together to a single data.frame
+bien_ch_df <- as.data.frame(cbind(bien_ch_means, 
+                                  bien_ch_q95, 
+                                  bien_ch_q05))
+
+# Make sure we a row for each focal species
+bien_ch_df <- bien_ch_df[match(focsp$NAME, 
+                               rownames(bien_ch_df)),]
+
+rownames(bien_ch_df) <- focsp$NAME
+```
+
+
