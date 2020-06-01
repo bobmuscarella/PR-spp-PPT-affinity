@@ -194,8 +194,8 @@ biennames[biennames=="Cecropia schreberiana"] <- "Cecropia peltata"
 biennames[biennames=="Prestoea montana"] <- "Prestoea acuminata"
 
 occ_bien <- todoBIEN::BIEN_occurrence_species(species=biennames,
-                                              user="bobmuscarella",
-                                              password="RH26KLXRB2DKZhkz")#,
+                                              user=user,
+                                              password=pswd)#,
                                               # observation.type = T, 
                                               # only.geovalid = T, 
                                               # cultivated = T, 
