@@ -168,7 +168,9 @@ colnames(gbif_ch_q95) <- paste0("bio", 1:19, "_q95")
 colnames(gbif_ch_q05) <- paste0("bio", 1:19, "_q05")
 
 # Bind together to a single data.frame
-gbif_ch_df <- data.frame(cbind(gbif_ch_means, 
+nobs <- as.vector(table(occ_gbif_cc_df$species))
+gbif_ch_df <- data.frame(cbind(nobs,
+                               gbif_ch_means, 
                                gbif_ch_q95, 
                                gbif_ch_q05))
 
@@ -184,10 +186,27 @@ rownames(gbif_ch_df) <- focsp$NAME
 We can also harvest data from BIEN. But, for some reason, I get a different number of occurrence records when I use the BIEN r package vs. if I download records from [www.biendata.org](www.biendata.org). In fact, no records are downloaded for CASARB or PREMON! I've asked the package author about this and am waiting for a reply.  In the meantime, the code below works but doesn't return very many records for some species so I would be very hesitant to use it.
 
 ```{r, message=F, eval=F}
-occ_bien <- BIEN_occurrence_species(focsp$NAME)
+library(todoBIEN)
+
+# Some names in BIEN are a bit different than we normally use
+biennames <- focsp$NAME
+biennames[biennames=="Cecropia schreberiana"] <- "Cecropia peltata"
+biennames[biennames=="Prestoea montana"] <- "Prestoea acuminata"
+
+occ_bien <- todoBIEN::BIEN_occurrence_species(species=biennames,
+                                              user="bobmuscarella",
+                                              password="RH26KLXRB2DKZhkz")#,
+                                              # observation.type = T, 
+                                              # only.geovalid = T, 
+                                              # cultivated = T, 
+                                              # natives.only = F)
 
 # Remove rows with no coordinates
 occ_bien <- occ_bien[!is.na(occ_bien$latitude),]
+
+# Revert species names
+occ_bien$scrubbed_species_binomial[occ_bien$scrubbed_species_binomial=="Cecropia peltata"] <- "Cecropia schreberiana"
+occ_bien$scrubbed_species_binomial[occ_bien$scrubbed_species_binomial=="Prestoea acuminata"] <- "Prestoea montana"
 
 # Run the coordinate cleaner function
 occ_bien_cc <- clean_coordinates(occ_bien, 
@@ -216,7 +235,9 @@ colnames(bien_ch_q95) <- paste0("bio", 1:19, "_q95")
 colnames(bien_ch_q05) <- paste0("bio", 1:19, "_q05")
 
 # Bind together to a single data.frame
-bien_ch_df <- as.data.frame(cbind(bien_ch_means, 
+nobs <- as.vector(table(occ_bien_cc$scrubbed_species_binomial))
+bien_ch_df <- as.data.frame(cbind(nobs,
+                                  bien_ch_means, 
                                   bien_ch_q95, 
                                   bien_ch_q05))
 
@@ -225,6 +246,53 @@ bien_ch_df <- bien_ch_df[match(focsp$NAME,
                                rownames(bien_ch_df)),]
 
 rownames(bien_ch_df) <- focsp$NAME
-```
 
+write.csv(bien_ch_df, "BIEN_ppt_affinities.csv")
+
+```
+## Combine GBIF and BIEN data before extracting bioclim
+
+```{r combo, eval=F}
+names(occ_bien_cc)[c(1,3:2)] <- names(occ_gbif_cc_df)[c(1:3)]
+
+comb_cc_df <- rbind(occ_gbif_cc_df[,c(1:3)], occ_bien_cc[,c(1,3:2)])
+
+# Remove duplicated records?
+comb_cc_df <- comb_cc_df[!duplicated(comb_cc_df),]
+
+# Do the extraction
+comb_ch_extract <- extract(ch_grids, comb_cc_df[,2:3])
+
+# Summarize the data with mean, 95% and 5% quantiles
+comb_ch_median <- apply(comb_ch_extract, 2, tapply, 
+                  comb_cc_df$species, 
+                  median, na.rm=T)
+comb_ch_q95 <- apply(comb_ch_extract, 2, tapply, 
+                comb_cc_df$species, 
+                quantile, 0.95, na.rm=T)
+comb_ch_q05 <- apply(comb_ch_extract, 2, tapply, 
+                comb_cc_df$species, 
+                quantile, 0.05, na.rm=T)
+
+# Rename the columns for convenience
+colnames(comb_ch_median) <- paste0("bio", 1:19, "_median")
+colnames(comb_ch_q95) <- paste0("bio", 1:19, "_q95")
+colnames(comb_ch_q05) <- paste0("bio", 1:19, "_q05")
+
+# Bind together to a single data.frame
+nobs <- as.vector(table(comb_cc_df$species))
+comb_ch_df <- as.data.frame(cbind(nobs,
+                                  comb_ch_median, 
+                                  comb_ch_q95, 
+                                  comb_ch_q05))
+
+# Make sure we a row for each focal species
+comb_ch_df <- comb_ch_df[match(focsp$NAME, 
+                               rownames(comb_ch_df)),]
+
+rownames(comb_ch_df) <- focsp$NAME
+
+write.csv(comb_ch_df, "Combined_BIEN_GBIF_ppt_affinities.csv")
+
+```
 

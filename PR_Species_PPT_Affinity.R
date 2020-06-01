@@ -1,4 +1,6 @@
 
+####################################
+# 0. GETTING STARTED
 
 library(raster)
 
@@ -6,6 +8,16 @@ library(raster)
 # 1. INPUT ENVIRONMENT LAYERS
 env <- stack("/Users/au529793/Projects/Thesis/DATA/occurrences/GIS DATA/rasters/PR_env_layers.grd")
 env <- env[[c(1,2,5,7,8)]]
+
+
+download.file("https://github.com/bobmuscarella/PR-spp-PPT-affinity/raw/master/PR_env_layers.grd",
+               destfile="PR_env_layers.grd")
+download.file("https://github.com/bobmuscarella/PR-spp-PPT-affinity/raw/master/PR_env_layers.gri",
+              destfile="PR_env_layers.gri")
+
+env <- stack("PR_env_layers.grd")
+env
+
 
 
 ####################################

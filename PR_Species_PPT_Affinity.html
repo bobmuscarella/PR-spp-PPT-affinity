@@ -1687,7 +1687,7 @@ unzip(&quot;DATA.zip&quot;)</code></pre>
 
 focpts &lt;- read.csv(&quot;DATA/Hydraulic_species_PR_occurrences.csv&quot;)
 
-focpts$PPT &lt;- extract(ppt, focpts[,c('LON','LAT')])
+focpts$PPT &lt;- extract(ppt, focpts[,c(&#39;LON&#39;,&#39;LAT&#39;)])
 
 splist &lt;- split(focpts, focpts$scrubbed.name)
 
@@ -1749,7 +1749,7 @@ occ_gbif_cc_df &lt;- do.call(rbind, occ_gbif_cc)</code></pre>
 <p>We can download the Chelsa global climate data using the <code>chelsaDL</code> package, which you need to install from GitHub using the <code>devtools</code> package like this:</p>
 <p><code>devtools::install_github(&quot;matthewkling/chelsaDL&quot;)</code></p>
 <p>Below, we first specify what we want - the climatological means for the bioclimatic variables (all 19 of them). You can also get past / future predictions, etc.</p>
-<pre class="r"><code># First create the 'order' for what you want to download
+<pre class="r"><code># First create the &#39;order&#39; for what you want to download
 ch_data &lt;- ch_queries(variables = c(&quot;bio&quot;),
                       layers = 1:19,
                       timeframes = &quot;1979-2013&quot;)
@@ -1780,7 +1780,9 @@ colnames(gbif_ch_q95) &lt;- paste0(&quot;bio&quot;, 1:19, &quot;_q95&quot;)
 colnames(gbif_ch_q05) &lt;- paste0(&quot;bio&quot;, 1:19, &quot;_q05&quot;)
 
 # Bind together to a single data.frame
-gbif_ch_df &lt;- data.frame(cbind(gbif_ch_means, 
+nobs &lt;- as.vector(table(occ_gbif_cc_df$species))
+gbif_ch_df &lt;- data.frame(cbind(nobs,
+                               gbif_ch_means, 
                                gbif_ch_q95, 
                                gbif_ch_q05))
 
@@ -1792,10 +1794,27 @@ rownames(gbif_ch_df) &lt;- focsp$NAME</code></pre>
 <div id="acquire-and-process-occurrences-from-bien" class="section level2">
 <h2>Acquire and process occurrences from BIEN</h2>
 <p>We can also harvest data from BIEN. But, for some reason, I get a different number of occurrence records when I use the BIEN r package vs. if I download records from <a href="www.biendata.org">www.biendata.org</a>. In fact, no records are downloaded for CASARB or PREMON! I’ve asked the package author about this and am waiting for a reply. In the meantime, the code below works but doesn’t return very many records for some species so I would be very hesitant to use it.</p>
-<pre class="r"><code>occ_bien &lt;- BIEN_occurrence_species(focsp$NAME)
+<pre class="r"><code>library(todoBIEN)
+
+# Some names in BIEN are a bit different than we normally use
+biennames &lt;- focsp$NAME
+biennames[biennames==&quot;Cecropia schreberiana&quot;] &lt;- &quot;Cecropia peltata&quot;
+biennames[biennames==&quot;Prestoea montana&quot;] &lt;- &quot;Prestoea acuminata&quot;
+
+occ_bien &lt;- todoBIEN::BIEN_occurrence_species(species=biennames,
+                                              user=&quot;bobmuscarella&quot;,
+                                              password=&quot;RH26KLXRB2DKZhkz&quot;)#,
+                                              # observation.type = T, 
+                                              # only.geovalid = T, 
+                                              # cultivated = T, 
+                                              # natives.only = F)
 
 # Remove rows with no coordinates
 occ_bien &lt;- occ_bien[!is.na(occ_bien$latitude),]
+
+# Revert species names
+occ_bien$scrubbed_species_binomial[occ_bien$scrubbed_species_binomial==&quot;Cecropia peltata&quot;] &lt;- &quot;Cecropia schreberiana&quot;
+occ_bien$scrubbed_species_binomial[occ_bien$scrubbed_species_binomial==&quot;Prestoea acuminata&quot;] &lt;- &quot;Prestoea montana&quot;
 
 # Run the coordinate cleaner function
 occ_bien_cc &lt;- clean_coordinates(occ_bien, 
@@ -1824,7 +1843,9 @@ colnames(bien_ch_q95) &lt;- paste0(&quot;bio&quot;, 1:19, &quot;_q95&quot;)
 colnames(bien_ch_q05) &lt;- paste0(&quot;bio&quot;, 1:19, &quot;_q05&quot;)
 
 # Bind together to a single data.frame
-bien_ch_df &lt;- as.data.frame(cbind(bien_ch_means, 
+nobs &lt;- as.vector(table(occ_bien_cc$scrubbed_species_binomial))
+bien_ch_df &lt;- as.data.frame(cbind(nobs,
+                                  bien_ch_means, 
                                   bien_ch_q95, 
                                   bien_ch_q05))
 
@@ -1832,7 +1853,52 @@ bien_ch_df &lt;- as.data.frame(cbind(bien_ch_means,
 bien_ch_df &lt;- bien_ch_df[match(focsp$NAME, 
                                rownames(bien_ch_df)),]
 
-rownames(bien_ch_df) &lt;- focsp$NAME</code></pre>
+rownames(bien_ch_df) &lt;- focsp$NAME
+
+write.csv(bien_ch_df, &quot;BIEN_ppt_affinities.csv&quot;)</code></pre>
+</div>
+<div id="combine-gbif-and-bien-data-before-extracting-bioclim" class="section level2">
+<h2>Combine GBIF and BIEN data before extracting bioclim</h2>
+<pre class="r"><code>names(occ_bien_cc)[c(1,3:2)] &lt;- names(occ_gbif_cc_df)[c(1:3)]
+
+comb_cc_df &lt;- rbind(occ_gbif_cc_df[,c(1:3)], occ_bien_cc[,c(1,3:2)])
+
+# Remove duplicated records?
+comb_cc_df &lt;- comb_cc_df[!duplicated(comb_cc_df),]
+
+# Do the extraction
+comb_ch_extract &lt;- extract(ch_grids, comb_cc_df[,2:3])
+
+# Summarize the data with mean, 95% and 5% quantiles
+comb_ch_median &lt;- apply(comb_ch_extract, 2, tapply, 
+                  comb_cc_df$species, 
+                  median, na.rm=T)
+comb_ch_q95 &lt;- apply(comb_ch_extract, 2, tapply, 
+                comb_cc_df$species, 
+                quantile, 0.95, na.rm=T)
+comb_ch_q05 &lt;- apply(comb_ch_extract, 2, tapply, 
+                comb_cc_df$species, 
+                quantile, 0.05, na.rm=T)
+
+# Rename the columns for convenience
+colnames(comb_ch_median) &lt;- paste0(&quot;bio&quot;, 1:19, &quot;_median&quot;)
+colnames(comb_ch_q95) &lt;- paste0(&quot;bio&quot;, 1:19, &quot;_q95&quot;)
+colnames(comb_ch_q05) &lt;- paste0(&quot;bio&quot;, 1:19, &quot;_q05&quot;)
+
+# Bind together to a single data.frame
+nobs &lt;- as.vector(table(comb_cc_df$species))
+comb_ch_df &lt;- as.data.frame(cbind(nobs,
+                                  comb_ch_median, 
+                                  comb_ch_q95, 
+                                  comb_ch_q05))
+
+# Make sure we a row for each focal species
+comb_ch_df &lt;- comb_ch_df[match(focsp$NAME, 
+                               rownames(comb_ch_df)),]
+
+rownames(comb_ch_df) &lt;- focsp$NAME
+
+write.csv(comb_ch_df, &quot;Combined_BIEN_GBIF_ppt_affinities.csv&quot;)</code></pre>
 </div>
 
 
