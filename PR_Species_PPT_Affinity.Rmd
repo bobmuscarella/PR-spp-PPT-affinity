@@ -296,3 +296,59 @@ write.csv(comb_ch_df, "Combined_BIEN_GBIF_ppt_affinities.csv")
 
 ```
 
+## Check precipitation affinity for a few potentially new focal species
+
+```{r}
+pts <- readRDS('/Users/au529793/Projects/Postdoc/CLCC/DATA/occurrences/PR_PLANT_OCCS_8.3.16.RDS')
+
+pts$scrubbed.name[pts$scrubbed.name=='Prestoea acuminata'] <- 'Prestoea montana'
+pts$scrubbed.name[pts$scrubbed.name=='Myrcia amazonica'] <- 'Myrcia leptoclada'
+pts$scrubbed.name[pts$scrubbed.name=='Nectandra turbacensis'] <- 'Ocotea sintenisii'
+pts$scrubbed.name[pts$scrubbed.name=='Henriettea squamulosa'] <- 'Calycogonium squamulosum'
+
+pts <- unique(pts)
+
+focsp <- data.frame(sp = c("Calycogonium squamulosum",
+                           "Cordia borinquensis",
+                           "Cyrilla racemiflora",
+                           "Cecropia schreberiana",
+                           "Prestoea montana",
+                           "Ocotea leucoxylon"),
+                    code=c("CALSQU","CORBOR","CYRRAC","CECSCH","PREMON","OCOLEU"))
+
+focpts <- droplevels(pts[pts$scrubbed.name %in% focsp$sp,])
+
+ppt <- raster("DATA/PR_mean_annual_ppt.tif")
+
+focpts$PPT <- extract(ppt, focpts[,c('LON','LAT')])
+
+splist <- split(focpts, focpts$scrubbed.name)
+
+pr_df <- data.frame()
+for(i in 1:length(splist)){
+  r <- raster(paste0("DATA/", focsp$code[i], ".grd"))
+  opt.ppt <- cellStats((r == cellStats(r, max)) * ppt, max)
+  pr_df <- rbind(pr_df, cbind(names(splist)[i], 
+                        median(splist[[i]]$PPT, na.rm=T), 
+                        min(splist[[i]]$PPT, na.rm=T), 
+                        max(splist[[i]]$PPT, na.rm=T), 
+                        opt.ppt,
+                        quantile(splist[[i]]$PPT, 0.05, na.rm=T),
+                        quantile(splist[[i]]$PPT, 0.95, na.rm=T)))
+}
+
+for(j in 2:7) { pr_df[,j] <- round(as.numeric(as.character(pr_df[,j])), 0) }
+
+names(pr_df) <- c("SpeciesName",
+                  "MedianPPT", 
+                  "MinPPT", 
+                  "MaxPPT",
+                  "OptimalPPT",
+                  "5%quantile",
+                  "95%quantile")
+
+rownames(pr_df) <- NULL
+
+write.csv(pr_df, "/Users/au529793/Desktop/NewTargets_PPTaffinity.csv")
+
+```
